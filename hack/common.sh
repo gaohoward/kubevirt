@@ -102,7 +102,7 @@ function go_build() {
 # a private HTTPS docker registry. The intention is that this will be merged with the trust
 # store in the build environment.
 
-DOCKER_CA_CERT_FILE="${DOCKER_CA_CERT_FILE:-}"
+DOCKER_CA_CERT_FILE="${DOCKER_CA_CERT_FILE:-/home/howard/docker-registry.home.arpa.crt}"
 DOCKERIZED_CUSTOM_CA_PATH="/etc/pki/ca-trust/source/anchors/custom-ca.crt"
 
 # We are formatting the architecture name here to ensure that

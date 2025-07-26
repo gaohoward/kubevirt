@@ -17,6 +17,7 @@ default_kubevirt_builder_image="quay.io/kubevirt/builder:${kubevirt_builder_vers
 kubevirt_cross_compile_image="quay.io/kubevirt/builder-cross:${kubevirt_builder_version}"
 
 KUBEVIRT_BUILDER_IMAGE=${KUBEVIRT_BUILDER_IMAGE:-"${default_kubevirt_builder_image}"}
+DOCKER_CA_CERT_FILE=/home/howard/docker-registry.home.arpa.crt
 
 # As long as KUBEVIRT_BUILDER_IMAGE is using the default builder, check if cross-compilation is needed and
 # switch to bigger cross-compile image instead.
@@ -122,8 +123,10 @@ elif [[ -f "${HOME}/.docker/config.json" && "$(cat ${HOME}/.docker/config.json |
     volumes="$volumes --mount type=bind,source=${HOME}/.docker/config.json,target=/root/.docker/config.json,readonly"
 fi
 
+echo "=====${DOCKER_CA_CERT_FILE} and ${DOCKERIZED_CUSTOM_CA_PATH}"
 # add custom docker certs, if needed
 if [ -n "$DOCKER_CA_CERT_FILE" ] && [ -f "$DOCKER_CA_CERT_FILE" ]; then
+    echo "==============================adding custome ca file $DOCKER_CA_CERT_FILE"
     volumes="$volumes -v ${DOCKER_CA_CERT_FILE}:${DOCKERIZED_CUSTOM_CA_PATH}:ro${selinux_bind_options}"
 fi
 
@@ -156,12 +159,21 @@ fi
 
 # Update cert trust, if custom is provided
 if [ -n "$DOCKER_CA_CERT_FILE" ] && [ -f "$DOCKER_CA_CERT_FILE" ]; then
+    echo "================updating bazel server"
     $KUBEVIRT_CRI exec ${CONTAINER_ENV} ${BUILDER}-bazel-server /entrypoint.sh "/usr/bin/update-ca-trust"
 fi
 
+echo "=====+++Make the image directly into builder container ${BUILDER} $IMAGE_PREFIX and $image_prefix"
+_rsync /home/howard/fedora_tools.tar "rsync://root@127.0.0.1:${RSYNCD_PORT}/build"
+_rsync /home/howard/projects/openshift-land/kubevirt/hack/builder/entrypoint.sh "rsync://root@127.0.0.1:${RSYNCD_PORT}/build"
+# run docker load
+# $KUBEVIRT_CRI exec ${CONTAINER_ENV} ${USE_TTY} ${BUILDER}-bazel-server "cp ./entrypoint.sh /entrypoint.sh"
+# $KUBEVIRT_CRI run ${CONTAINER_ENV} -v "${BUILDER}:/root:rw${selinux_bind_options}" --security-opt "label=disable" --rm ${KUBEVIRT_BUILDER_IMAGE} /entrypoint.sh "docker load -i /tmp/fedora_tools.tar"
+
 # Run the command
+echo "==========================$KUBEVIRT_CRI============ command $@"
 test -t 1 && USE_TTY="-it"
-if ! $KUBEVIRT_CRI exec ${CONTAINER_ENV} ${USE_TTY} ${BUILDER}-bazel-server /entrypoint.sh "$@"; then
+if ! $KUBEVIRT_CRI exec ${CONTAINER_ENV} ${USE_TTY} ${BUILDER}-bazel-server ./entrypoint.sh "$@"; then
     # Copy the build output out of the container, make sure that _out exactly matches the build result
     if [ "$SYNC_OUT" = "true" ]; then
         _rsync --delete "rsync://root@127.0.0.1:${RSYNCD_PORT}/out" ${OUT_DIR}

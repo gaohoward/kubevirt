@@ -357,8 +357,8 @@ container_pull(
 # TODO build fedora_with_test_tooling for multi-arch
 container_pull(
     name = "fedora_with_test_tooling",
-    digest = "sha256:ffcfed26f1784535ec5a2fed49ed80ccfd774aa09c665f95835c3d3bf3ec37aa",
-    registry = "quay.io",
+    tag = "ffcfed26f1784535ec5a2fed49ed80ccfd774aa09c665f95835c3d3bf3ec37aa",
+    registry = "docker-registry.home.arpa:5000",
     repository = "kubevirtci/fedora-with-test-tooling",
 )
 
@@ -394,9 +394,9 @@ container_pull(
 # TODO build fedora_realtime for multi-arch
 container_pull(
     name = "fedora_realtime",
-    digest = "sha256:437f4e02986daf0058239f4a282d32304dcac629d5d1b4c75a74025f1ce22811",
-    registry = "quay.io",
     repository = "kubevirt/fedora-realtime-container-disk",
+    tag = "437f4e02986daf0058239f4a282d32304dcac629d5d1b4c75a74025f1ce22811",
+    registry = "docker-registry.home.arpa:5000",
 )
 
 container_pull(
