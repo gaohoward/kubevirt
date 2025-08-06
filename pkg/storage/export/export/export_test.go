@@ -28,6 +28,7 @@ import (
 	"strings"
 	"time"
 
+	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/uuid"
 
 	. "github.com/onsi/ginkgo/v2"
@@ -84,6 +85,7 @@ const (
 	labelValue      = "label-value"
 	annotationKey   = "annotation-key"
 	annotationValue = "annotation-value"
+	fakePVCUID      = "d6a57c45-c5f5-40ee-a497-c9a3bf7fb742"
 )
 
 var (
@@ -1592,7 +1594,7 @@ func verifyLinksEmpty(vmExport *exportv1.VirtualMachineExport) {
 	Expect(vmExport.Status.Links.External).To(BeNil())
 }
 
-func verifyLinksInternal(vmExport *exportv1.VirtualMachineExport, expectedVolumeFormats ...exportv1.VirtualMachineExportVolumeFormat) {
+func verifyLinksInternal(vmExport *exportv1.VirtualMachineExport, expectedName *string, expectedVolumeFormats ...exportv1.VirtualMachineExportVolumeFormat) {
 	Expect(vmExport.Status).ToNot(BeNil())
 	Expect(vmExport.Status.Links).ToNot(BeNil())
 	Expect(vmExport.Status.Links.Internal).NotTo(BeNil())
@@ -1601,6 +1603,9 @@ func verifyLinksInternal(vmExport *exportv1.VirtualMachineExport, expectedVolume
 	for _, volume := range vmExport.Status.Links.Internal.Volumes {
 		Expect(volume.Formats).To(HaveLen(2))
 		Expect(expectedVolumeFormats).To(ContainElements(volume.Formats))
+	}
+	if expectedName != nil {
+		Expect(vmExport.Status.Links.Internal.Volumes[0].Name).To(Equal(*expectedName))
 	}
 }
 
@@ -1630,7 +1635,7 @@ func verifyKubevirtInternal(vmExport *exportv1.VirtualMachineExport, exportName,
 			Url:    fmt.Sprintf("https://%s.%s.svc/volumes/%s/disk.img.gz", fmt.Sprintf("%s-%s", exportPrefix, exportName), namespace, volumeName),
 		})
 	}
-	verifyLinksInternal(vmExport, exportVolumeFormats...)
+	verifyLinksInternal(vmExport, nil, exportVolumeFormats...)
 }
 
 func verifyKubevirtExternal(vmExport *exportv1.VirtualMachineExport, exportName, namespace, volumeName string) {
@@ -1642,7 +1647,7 @@ func verifyKubevirtExternal(vmExport *exportv1.VirtualMachineExport, exportName,
 }
 
 func verifyArchiveInternal(vmExport *exportv1.VirtualMachineExport, exportName, namespace, volumeName string) {
-	verifyLinksInternal(vmExport,
+	verifyLinksInternal(vmExport, nil,
 		exportv1.VirtualMachineExportVolumeFormat{
 			Format: exportv1.Dir,
 			Url:    fmt.Sprintf("https://%s.%s.svc/volumes/%s/dir", fmt.Sprintf("%s-%s", exportPrefix, exportName), namespace, volumeName),
@@ -1815,6 +1820,7 @@ func createPVC(name, contentType string) *k8sv1.PersistentVolumeClaim {
 			Annotations: map[string]string{
 				annContentType: contentType,
 			},
+			UID: types.UID(fakePVCUID),
 		},
 		Spec: k8sv1.PersistentVolumeClaimSpec{
 			VolumeMode:  pointer.P(k8sv1.PersistentVolumeMode("testvolumemode")),
