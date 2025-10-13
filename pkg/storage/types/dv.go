@@ -215,7 +215,7 @@ func HasDataVolumeProvisioning(namespace string, volumes []virtv1.Volume, dataVo
 			log.Log.Errorf("Error fetching DataVolume %s while determining virtual machine status: %v", volume.DataVolume.Name, err)
 			continue
 		}
-		if dv == nil || dv.Status.Phase == cdiv1.Succeeded || dv.Status.Phase == cdiv1.PendingPopulation {
+		if dv == nil || dv.Status.Phase == cdiv1.Succeeded || dv.Status.Phase == cdiv1.PendingPopulation || dv.Status.Phase == cdiv1.PhaseUnset {
 			continue
 		}
 

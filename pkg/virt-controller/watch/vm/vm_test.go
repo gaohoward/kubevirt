@@ -3982,7 +3982,7 @@ var _ = Describe("VirtualMachine", func() {
 					})
 				})
 
-				DescribeTable("Should set a appropriate status when DataVolume exists but not bound", func(running bool, phase cdiv1.DataVolumePhase, status v1.VirtualMachinePrintableStatus) {
+				DescribeTable("Should set a appropriate status when DataVolume exists but not bound", func(running bool, phase cdiv1.DataVolumePhase, status v1.VirtualMachinePrintableStatus, expectVmi bool) {
 					if running {
 						vm.Spec.RunStrategy = pointer.P(v1.RunStrategyAlways)
 					} else {
@@ -4010,7 +4010,7 @@ var _ = Describe("VirtualMachine", func() {
 
 					sanityExecute(vm)
 
-					if running {
+					if running && expectVmi {
 						_, err := virtFakeClient.KubevirtV1().VirtualMachineInstances(vm.Namespace).Get(context.Background(), vm.Name, metav1.GetOptions{})
 						Expect(err).NotTo(HaveOccurred())
 					}
@@ -4019,10 +4019,11 @@ var _ = Describe("VirtualMachine", func() {
 					Expect(err).To(Succeed())
 					Expect(vm.Status.PrintableStatus).To(Equal(status))
 				},
-					Entry("Started VM PendingPopulation", true, cdiv1.PendingPopulation, v1.VirtualMachineStatusWaitingForVolumeBinding),
-					Entry("Started VM WFFC", true, cdiv1.WaitForFirstConsumer, v1.VirtualMachineStatusWaitingForVolumeBinding),
-					Entry("Stopped VM PendingPopulation", false, cdiv1.PendingPopulation, v1.VirtualMachineStatusStopped),
-					Entry("Stopped VM", false, cdiv1.WaitForFirstConsumer, v1.VirtualMachineStatusStopped),
+					Entry("Started VM PendingPopulation", true, cdiv1.PendingPopulation, v1.VirtualMachineStatusWaitingForVolumeBinding, true),
+					Entry("Started VM WFFC", true, cdiv1.WaitForFirstConsumer, v1.VirtualMachineStatusWaitingForVolumeBinding, true),
+					Entry("Stopped VM PendingPopulation", false, cdiv1.PendingPopulation, v1.VirtualMachineStatusStopped, true),
+					Entry("Stopped VM", false, cdiv1.WaitForFirstConsumer, v1.VirtualMachineStatusStopped, true),
+					Entry("Starting VM With N/A Phase (VMI not created)", true, cdiv1.PhaseUnset, v1.VirtualMachineStatusWaitingForVolumeBinding, false),
 				)
 
 				DescribeTable("Should set a Provisioning status when DataVolume bound but not ready",
