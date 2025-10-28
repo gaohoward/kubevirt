@@ -51,7 +51,7 @@ func NewVMIUpdateAdmitter(config *virtconfig.ClusterConfig, kubeVirtServiceAccou
 }
 
 func (admitter *VMIUpdateAdmitter) Debug(message string, args ...any) {
-	fmt.Printf("[debug] "+message, args...)
+	fmt.Printf("[debug]=== "+message+"\n", args...)
 }
 
 func (admitter *VMIUpdateAdmitter) Admit(_ context.Context, ar *admissionv1.AdmissionReview) *admissionv1.AdmissionResponse {
@@ -66,6 +66,7 @@ func (admitter *VMIUpdateAdmitter) Admit(_ context.Context, ar *admissionv1.Admi
 	}
 
 	if admitter.clusterConfig.NodeRestrictionEnabled() && hasRequestOriginatedFromVirtHandler(ar.Request.UserInfo.Username, admitter.kubeVirtServiceAccounts) {
+		admitter.Debug("node restriction enabled check")
 		values, exist := ar.Request.UserInfo.Extra[nodeNameExtraInfo]
 		if exist && len(values) > 0 {
 			nodeName := values[0]
@@ -107,13 +108,17 @@ func (admitter *VMIUpdateAdmitter) Admit(_ context.Context, ar *admissionv1.Admi
 	// Reject VMI update if VMI spec changed
 	_, isKubeVirtServiceAccount := admitter.kubeVirtServiceAccounts[ar.Request.UserInfo.Username]
 	if !equality.Semantic.DeepEqual(newVMI.Spec, oldVMI.Spec) {
+		admitter.Debug("something in vmi has changed, checking")
 		// Only allow the KubeVirt SA to modify the VMI spec, since that means it went through the sub resource.
 		if isKubeVirtServiceAccount {
+			admitter.Debug("admiting hot plug")
 			hotplugResponse := admitHotplug(oldVMI, newVMI, admitter.clusterConfig)
 			if hotplugResponse != nil {
+				admitter.Debug("got response %v", hotplugResponse)
 				return hotplugResponse
 			}
 		} else {
+			admitter.Debug("update vmi is not allowed this time")
 			return webhookutils.ToAdmissionResponse([]metav1.StatusCause{
 				{
 					Type:    metav1.CauseTypeFieldValueNotSupported,
