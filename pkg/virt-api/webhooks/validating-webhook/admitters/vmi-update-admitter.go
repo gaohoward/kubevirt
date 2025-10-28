@@ -21,6 +21,7 @@ package admitters
 
 import (
 	"context"
+	"fmt"
 	"strings"
 
 	admissionv1 "k8s.io/api/admission/v1"
@@ -49,7 +50,12 @@ func NewVMIUpdateAdmitter(config *virtconfig.ClusterConfig, kubeVirtServiceAccou
 	}
 }
 
+func (admitter *VMIUpdateAdmitter) Debug(message string, args ...any) {
+	fmt.Printf("[debug] "+message, args...)
+}
+
 func (admitter *VMIUpdateAdmitter) Admit(_ context.Context, ar *admissionv1.AdmissionReview) *admissionv1.AdmissionResponse {
+	admitter.Debug("In vmi update admitter")
 	if resp := webhookutils.ValidateSchema(v1.VirtualMachineInstanceGroupVersionKind, ar.Request.Object.Raw); resp != nil {
 		return resp
 	}
