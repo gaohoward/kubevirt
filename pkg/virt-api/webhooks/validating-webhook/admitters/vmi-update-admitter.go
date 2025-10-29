@@ -50,12 +50,12 @@ func NewVMIUpdateAdmitter(config *virtconfig.ClusterConfig, kubeVirtServiceAccou
 	}
 }
 
-func (admitter *VMIUpdateAdmitter) Debug(message string, args ...any) {
+func Debug(message string, args ...any) {
 	fmt.Printf("[debug]=== "+message+"\n", args...)
 }
 
 func (admitter *VMIUpdateAdmitter) Admit(_ context.Context, ar *admissionv1.AdmissionReview) *admissionv1.AdmissionResponse {
-	admitter.Debug("In vmi update admitter")
+	Debug("In vmi update admitter")
 	if resp := webhookutils.ValidateSchema(v1.VirtualMachineInstanceGroupVersionKind, ar.Request.Object.Raw); resp != nil {
 		return resp
 	}
@@ -66,7 +66,7 @@ func (admitter *VMIUpdateAdmitter) Admit(_ context.Context, ar *admissionv1.Admi
 	}
 
 	if admitter.clusterConfig.NodeRestrictionEnabled() && hasRequestOriginatedFromVirtHandler(ar.Request.UserInfo.Username, admitter.kubeVirtServiceAccounts) {
-		admitter.Debug("node restriction enabled check")
+		Debug("node restriction enabled check")
 		values, exist := ar.Request.UserInfo.Extra[nodeNameExtraInfo]
 		if exist && len(values) > 0 {
 			nodeName := values[0]
@@ -108,17 +108,17 @@ func (admitter *VMIUpdateAdmitter) Admit(_ context.Context, ar *admissionv1.Admi
 	// Reject VMI update if VMI spec changed
 	_, isKubeVirtServiceAccount := admitter.kubeVirtServiceAccounts[ar.Request.UserInfo.Username]
 	if !equality.Semantic.DeepEqual(newVMI.Spec, oldVMI.Spec) {
-		admitter.Debug("something in vmi has changed, checking")
+		Debug("something in vmi has changed, checking")
 		// Only allow the KubeVirt SA to modify the VMI spec, since that means it went through the sub resource.
 		if isKubeVirtServiceAccount {
-			admitter.Debug("admiting hot plug")
+			Debug("admiting hot plug")
 			hotplugResponse := admitHotplug(oldVMI, newVMI, admitter.clusterConfig)
 			if hotplugResponse != nil {
-				admitter.Debug("got response %v", hotplugResponse)
+				Debug("got response %v", hotplugResponse)
 				return hotplugResponse
 			}
 		} else {
-			admitter.Debug("update vmi is not allowed this time")
+			Debug("update vmi is not allowed this time")
 			return webhookutils.ToAdmissionResponse([]metav1.StatusCause{
 				{
 					Type:    metav1.CauseTypeFieldValueNotSupported,
@@ -168,7 +168,10 @@ func validateExpectedDisksAndFilesystems(volumes []v1.Volume, disks []v1.Disk, f
 
 // admitStorageUpdate compares the old and new volumes and disks, and ensures that they match and are valid.
 func admitStorageUpdate(newVolumes, oldVolumes []v1.Volume, newDisks, oldDisks []v1.Disk, volumeStatuses []v1.VolumeStatus, newVMI *v1.VirtualMachineInstance, config *virtconfig.ClusterConfig) *admissionv1.AdmissionResponse {
+
+	Debug("validing storage")
 	if err := validateExpectedDisksAndFilesystems(newVolumes, newDisks, newVMI.Spec.Domain.Devices.Filesystems, config); err != nil {
+		Debug("error validating disks and fs")
 		return webhookutils.ToAdmissionResponse([]metav1.StatusCause{
 			{
 				Type:    metav1.CauseTypeFieldValueInvalid,
@@ -185,18 +188,24 @@ func admitStorageUpdate(newVolumes, oldVolumes []v1.Volume, newDisks, oldDisks [
 	newDiskMap := getDiskMap(newDisks)
 	oldDiskMap := getDiskMap(oldDisks)
 
+	Debug("validating perm vols")
 	permanentAr := verifyPermanentVolumes(newPermanentVolumeMap, oldPermanentVolumeMap, newDiskMap, oldDiskMap, migratedVolumeMap)
 	if permanentAr != nil {
+		Debug("failed validating perm vols: %v", permanentAr)
 		return permanentAr
 	}
 
+	Debug("validating hot plug vols")
 	hotplugAr := verifyHotplugVolumes(newHotplugVolumeMap, oldHotplugVolumeMap, newDiskMap, oldDiskMap, migratedVolumeMap)
 	if hotplugAr != nil {
+		Debug("failed validating hotplug vols: %v", hotplugAr)
 		return hotplugAr
 	}
 
+	Debug("validating vmi spec")
 	causes := ValidateVirtualMachineInstanceSpec(k8sfield.NewPath("spec"), &newVMI.Spec, config)
 	if len(causes) > 0 {
+		Debug("failed validating vmi spec: %v", causes)
 		return webhookutils.ToAdmissionResponse(causes)
 	}
 
