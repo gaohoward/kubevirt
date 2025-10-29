@@ -205,7 +205,7 @@ func admitStorageUpdate(newVolumes, oldVolumes []v1.Volume, newDisks, oldDisks [
 	Debug("validating vmi spec")
 	causes := ValidateVirtualMachineInstanceSpec(k8sfield.NewPath("spec"), &newVMI.Spec, config)
 	if len(causes) > 0 {
-		Debug("failed validating vmi spec: %v", causes)
+		Debug("failed validating vmi spec, size: %d, cause0: %v", len(causes), causes[0])
 		return webhookutils.ToAdmissionResponse(causes)
 	}
 

@@ -187,66 +187,162 @@ func ValidateVirtualMachineInstancePerArch(field *k8sfield.Path, spec *v1.Virtua
 func ValidateVirtualMachineInstanceSpec(field *k8sfield.Path, spec *v1.VirtualMachineInstanceSpec, config *virtconfig.ClusterConfig) []metav1.StatusCause {
 	var causes []metav1.StatusCause
 
+	Debug("In valicating vmi, gathering causes")
+	foundFirst := false
+
+	checkDebug := func(num int, curCauses []metav1.StatusCause) {
+		if len(curCauses) == 1 && !foundFirst {
+			Debug("failed validating %d vmi spec, size: %d, cause0: %v", num, len(curCauses), curCauses[0])
+			foundFirst = true
+		}
+	}
+
 	causes = append(causes, validateHostNameNotConformingToDNSLabelRules(field, spec)...)
+	checkDebug(1, causes)
+
 	causes = append(causes, validateSubdomainDNSSubdomainRules(field, spec)...)
+	checkDebug(2, causes)
+
 	causes = append(causes, validateMemoryRequestsNegativeOrNull(field, spec)...)
+	checkDebug(3, causes)
+
 	causes = append(causes, validateMemoryLimitsNegativeOrNull(field, spec)...)
+	checkDebug(4, causes)
+
 	causes = append(causes, validateHugepagesMemoryRequests(field, spec)...)
+	checkDebug(5, causes)
+
 	causes = append(causes, validateGuestMemoryLimit(field, spec, config)...)
+	checkDebug(6, causes)
+
 	causes = append(causes, validateEmulatedMachine(field, spec, config)...)
+	checkDebug(7, causes)
+
 	causes = append(causes, validateFirmwareACPI(field.Child("acpi"), spec)...)
+	checkDebug(8, causes)
+
 	causes = append(causes, validateCPURequestNotNegative(field, spec)...)
+	checkDebug(9, causes)
+
 	causes = append(causes, validateCPULimitNotNegative(field, spec)...)
+	checkDebug(10, causes)
+
 	causes = append(causes, validateCpuRequestDoesNotExceedLimit(field, spec)...)
+	checkDebug(11, causes)
+
 	causes = append(causes, validateCpuPinning(field, spec, config)...)
+	checkDebug(12, causes)
+
 	causes = append(causes, validateNUMA(field, spec, config)...)
+	checkDebug(13, causes)
+
 	causes = append(causes, validateCPUIsolatorThread(field, spec)...)
+	checkDebug(14, causes)
+
 	causes = append(causes, validateCPUFeaturePolicies(field, spec)...)
+	checkDebug(15, causes)
+
 	causes = append(causes, validateCPUHotplug(field, spec)...)
+	checkDebug(16, causes)
+
 	causes = append(causes, validateStartStrategy(field, spec)...)
+	checkDebug(17, causes)
+
 	causes = append(causes, validateRealtime(field, spec)...)
+	checkDebug(18, causes)
+
 	causes = append(causes, validateSpecAffinity(field, spec)...)
+	checkDebug(19, causes)
+
 	causes = append(causes, validateSpecTopologySpreadConstraints(field, spec)...)
+	checkDebug(20, causes)
+
 	causes = append(causes, validateArchitecture(field, spec, config)...)
+	checkDebug(21, causes)
 
 	netValidator := netadmitter.NewValidator(field, spec, config)
 	causes = append(causes, netValidator.Validate()...)
+	checkDebug(22, causes)
 
 	causes = append(causes, draadmitter.ValidateCreation(field, spec, config)...)
+	checkDebug(23, causes)
 
 	causes = append(causes, validateBootOrder(field, spec, config)...)
+	checkDebug(24, causes)
 
 	causes = append(causes, validateInputDevices(field, spec)...)
+	checkDebug(25, causes)
+
 	causes = append(causes, validateIOThreadsPolicy(field, spec)...)
+	checkDebug(26, causes)
+
+	checkDebug(27, causes)
+
 	causes = append(causes, validateProbe(field.Child("readinessProbe"), spec.ReadinessProbe)...)
+	checkDebug(28, causes)
+
 	causes = append(causes, validateProbe(field.Child("livenessProbe"), spec.LivenessProbe)...)
+	checkDebug(29, causes)
 
 	if podNetwork := vmispec.LookupPodNetwork(spec.Networks); podNetwork == nil {
 		causes = appendStatusCauseForProbeNotAllowedWithNoPodNetworkPresent(field.Child("readinessProbe"), spec.ReadinessProbe, causes)
+		checkDebug(30, causes)
 		causes = appendStatusCauseForProbeNotAllowedWithNoPodNetworkPresent(field.Child("livenessProbe"), spec.LivenessProbe, causes)
+		checkDebug(31, causes)
 	}
 
 	causes = append(causes, validateDomainSpec(field.Child("domain"), &spec.Domain)...)
+	checkDebug(32, causes)
+
 	causes = append(causes, validateVolumes(field.Child("volumes"), spec.Volumes, config)...)
+	checkDebug(33, causes)
+
 	causes = append(causes, validateContainerDisks(field, spec)...)
+	checkDebug(34, causes)
 
 	causes = append(causes, validateAccessCredentials(field.Child("accessCredentials"), spec.AccessCredentials, spec.Volumes)...)
+	checkDebug(35, causes)
 
 	if spec.DNSPolicy != "" {
 		causes = append(causes, validateDNSPolicy(&spec.DNSPolicy, field.Child("dnsPolicy"))...)
+		checkDebug(36, causes)
+
 	}
 	causes = append(causes, validatePodDNSConfig(spec.DNSConfig, &spec.DNSPolicy, field.Child("dnsConfig"))...)
+	checkDebug(37, causes)
+
 	causes = append(causes, validateLiveMigration(field, spec, config)...)
+	checkDebug(38, causes)
+
 	causes = append(causes, validateMDEVRamFB(field, spec)...)
+	checkDebug(39, causes)
+
 	causes = append(causes, validateHostDevicesWithPassthroughEnabled(field, spec, config)...)
+	checkDebug(40, causes)
+
 	causes = append(causes, validateSoundDevices(field, spec)...)
+	checkDebug(41, causes)
+
 	causes = append(causes, validateLaunchSecurity(field, spec, config)...)
+	checkDebug(42, causes)
+
 	causes = append(causes, validateVSOCK(field, spec, config)...)
+	checkDebug(43, causes)
+
 	causes = append(causes, validatePersistentReservation(field, spec, config)...)
+	checkDebug(44, causes)
+
 	causes = append(causes, validateDownwardMetrics(field, spec, config)...)
+	checkDebug(45, causes)
+
 	causes = append(causes, validateFilesystemsWithVirtIOFSEnabled(field, spec, config)...)
+	checkDebug(46, causes)
+
 	causes = append(causes, validateVideoConfig(field, spec, config)...)
+	checkDebug(47, causes)
+
 	causes = append(causes, validatePanicDevices(field, spec, config)...)
+	checkDebug(48, causes)
 
 	return causes
 }
