@@ -953,7 +953,7 @@ var _ = Describe(SIG("VirtualMachineSnapshot Tests", func() {
 				}))
 			})
 
-			It("should error if VolumeSnapshot deleted", func() {
+			FIt("should error if VolumeSnapshot deleted", func() {
 				snapshot = libstorage.NewSnapshot(vm.Name, vm.Namespace)
 
 				_, err = virtClient.VirtualMachineSnapshot(snapshot.Namespace).Create(context.Background(), snapshot, metav1.CreateOptions{})
