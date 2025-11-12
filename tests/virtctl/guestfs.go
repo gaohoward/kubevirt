@@ -74,8 +74,8 @@ var _ = Describe(SIG("[sig-storage]Guestfs", decorators.SigStorage, func() {
 		guestfs.CreateAttacherFunc = guestfs.CreateAttacher
 		close(done)
 		if CurrentSpecReport().State.Is(types.SpecStateFailed) {
-			dlog("failed test, hang test for 30min")
-			delay(30)
+			dlog("failed test, hang test for 60min")
+			delay(60)
 		}
 	})
 
@@ -127,8 +127,8 @@ var _ = Describe(SIG("[sig-storage]Guestfs", decorators.SigStorage, func() {
 				Expect(err).ToNot(HaveOccurred())
 				Expect(stderr).To(BeEmpty())
 				Expect(stdout).To(BeEmpty())
-				dlog("fail for debug")
-				Fail("fail for debug")
+				// dlog("fail for debug")
+				// Fail("fail for debug")
 			})
 	})
 
