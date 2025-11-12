@@ -1096,7 +1096,7 @@ var _ = Describe(SIG("Hotplug", func() {
 				Entry(" with VMs and block", Serial, addDVVolumeVM, removeVolumeVM, k8sv1.PersistentVolumeBlock),
 			)
 
-			It("should allow to hotplug 75 volumes simultaneously", decorators.LargeStoragePoolRequired, func() {
+			FIt("should allow to hotplug 75 volumes simultaneously", decorators.LargeStoragePoolRequired, func() {
 				vmi, err := virtClient.VirtualMachineInstance(vm.Namespace).Get(context.Background(), vm.Name, metav1.GetOptions{})
 				Expect(err).ToNot(HaveOccurred())
 				libwait.WaitForSuccessfulVMIStart(vmi,
