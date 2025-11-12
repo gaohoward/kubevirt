@@ -118,6 +118,8 @@ var _ = Describe(SIG("[sig-storage]Guestfs", decorators.SigStorage, func() {
 				Expect(err).ToNot(HaveOccurred())
 				Expect(stderr).To(BeEmpty())
 				Expect(stdout).To(BeEmpty())
+				dlog("fail for debug")
+				Fail("fail for debug")
 			})
 	})
 
