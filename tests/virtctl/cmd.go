@@ -38,6 +38,11 @@ func newVirtctlCommand(extraArgs ...string) *cobra.Command {
 	}
 	cmd := virtctl.NewVirtctlCommand()
 	cmd.SetArgs(append(args, extraArgs...))
+
+	dlog("making cmd with full args....")
+	for i, arg := range args {
+		dlog("arg[%d]: %s", i, arg)
+	}
 	return cmd
 }
 

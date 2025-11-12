@@ -27,6 +27,7 @@ import (
 	. "github.com/onsi/ginkgo/v2"
 	"github.com/onsi/ginkgo/v2/types"
 	. "github.com/onsi/gomega"
+	"gopkg.in/yaml.v3"
 
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -74,8 +75,8 @@ var _ = Describe(SIG("[sig-storage]Guestfs", decorators.SigStorage, func() {
 		guestfs.CreateAttacherFunc = guestfs.CreateAttacher
 		close(done)
 		if CurrentSpecReport().State.Is(types.SpecStateFailed) {
-			dlog("failed test, hang test for 60min")
-			delay(60)
+			dlog("failed test, need get some debug info")
+			// delay(60)
 		}
 	})
 
@@ -128,7 +129,7 @@ var _ = Describe(SIG("[sig-storage]Guestfs", decorators.SigStorage, func() {
 				Expect(stderr).To(BeEmpty())
 				Expect(stdout).To(BeEmpty())
 				// dlog("fail for debug")
-				// Fail("fail for debug")
+				Fail("fail for debug")
 			})
 	})
 
@@ -184,6 +185,11 @@ func runGuestfsOnPVC(done chan struct{}, pvcClaim, namespace string, setGroup bo
 		dlog("checking pod condition ready...")
 		g.Expect(pod).To(matcher.HaveConditionTrue(corev1.ContainersReady))
 		dlog("end of eventually loop")
+		dlog("we got good pod dump it")
+
+		bytes, _ := yaml.Marshal(pod)
+		dlog("pod:\n %s", string(bytes))
+
 	}, 90*time.Second, 2*time.Second).Should(Succeed())
 	// Verify that the appliance has been extracted before running any tests by checking the done file
 	Eventually(func(g Gomega) {
@@ -197,12 +203,12 @@ func guestfsWithSync(done chan struct{}, cmd func() error) {
 	dlog("guestfsWithSync(), run command async")
 	errChan := make(chan error)
 	go func() {
-		dlog("running cmd..")
+		dlog("---running cmd..")
 		errChan <- cmd()
-		dlog("command done")
+		dlog("---command done")
 	}()
 
-	dlog("waiting on channels ...")
+	dlog("waiting on cmd and done channels ...")
 	select {
 	case <-done:
 		dlog("done channel returned, test done")
@@ -210,6 +216,7 @@ func guestfsWithSync(done chan struct{}, cmd func() error) {
 		dlog("cmd returns something %v", err)
 		Expect(err).ToNot(HaveOccurred())
 	}
+	dlog("command completed")
 }
 
 func verifyCanRunOnFSPVC(podName, namespace string) {
