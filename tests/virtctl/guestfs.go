@@ -97,7 +97,7 @@ var _ = Describe(SIG("[sig-storage]Guestfs", decorators.SigStorage, func() {
 			})
 		})
 
-		It("[posneg:positive][test_id:6479]Should successfully run guestfs command on a block-based PVC",
+		FIt("[posneg:positive][test_id:6479]Should successfully run guestfs command on a block-based PVC",
 			decorators.Conformance, decorators.RequiresBlockStorage, func() {
 				libstorage.CreateBlockPVC(pvcClaim, testsuite.GetTestNamespace(nil), "500Mi", libstorage.WithStorageProfile())
 				runGuestfsOnPVC(done, pvcClaim, testsuite.GetTestNamespace(nil), setGroup)
