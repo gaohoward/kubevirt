@@ -25,6 +25,7 @@ import (
 	"time"
 
 	. "github.com/onsi/ginkgo/v2"
+	"github.com/onsi/ginkgo/v2/types"
 	. "github.com/onsi/gomega"
 
 	corev1 "k8s.io/api/core/v1"
@@ -67,7 +68,11 @@ var _ = Describe(SIG("[sig-storage]Guestfs", decorators.SigStorage, func() {
 
 	AfterEach(func() {
 		guestfs.CreateAttacherFunc = guestfs.CreateAttacher
-		close(done)
+		if CurrentSpecReport().State.Is(types.SpecStateFailed) {
+			dlog("failed test, don't close the chan so you can investiage")
+		} else {
+			close(done)
+		}
 	})
 
 	Context("[rfe_id:6364]Run libguestfs on PVCs without root", func() {
