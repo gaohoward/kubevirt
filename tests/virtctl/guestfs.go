@@ -40,6 +40,12 @@ import (
 	"kubevirt.io/kubevirt/tests/testsuite"
 )
 
+func dlog(format string, args ...any) {
+	currentTime := time.Now()
+	t := currentTime.Format("15:04:05.000")
+	fmt.Fprintf(GinkgoWriter, "[debug] "+t+" "+format+"\n", args...)
+}
+
 var _ = Describe(SIG("[sig-storage]Guestfs", decorators.SigStorage, func() {
 	var (
 		pvcClaim string
@@ -99,8 +105,13 @@ var _ = Describe(SIG("[sig-storage]Guestfs", decorators.SigStorage, func() {
 
 		FIt("[posneg:positive][test_id:6479]Should successfully run guestfs command on a block-based PVC",
 			decorators.Conformance, decorators.RequiresBlockStorage, func() {
+				dlog("Running guestfs on block PVC, creating PVC %s", pvcClaim)
 				libstorage.CreateBlockPVC(pvcClaim, testsuite.GetTestNamespace(nil), "500Mi", libstorage.WithStorageProfile())
+
+				dlog("Starting guestfs on block PVC %s", pvcClaim)
 				runGuestfsOnPVC(done, pvcClaim, testsuite.GetTestNamespace(nil), setGroup)
+
+				dlog("Verifying guestfs can run on block PVC %s", pvcClaim)
 				stdout, stderr, err := execCommandLibguestfsPod(
 					getGuestfsPodName(pvcClaim), testsuite.GetTestNamespace(nil), []string{"guestfish", "-a", "/dev/vda", "run"},
 				)
@@ -136,18 +147,32 @@ func guestfsCmd(pvcClaim, namespace string, setGroup bool, extraArgs ...string) 
 		const testGroup = "2000"
 		args = append(args, "--fsGroup", testGroup)
 	}
+	dlog("making virtctl command with args...")
+	for i, arg := range args {
+		dlog("---arg %d: %s", i, arg)
+	}
 	return newRepeatableVirtctlCommand(args...)
 }
 
 func runGuestfsOnPVC(done chan struct{}, pvcClaim, namespace string, setGroup bool, extraArgs ...string) {
+
+	dlog("runGuestfsOnPVC %s in namespace %s", pvcClaim, namespace)
+
 	go guestfsWithSync(done, guestfsCmd(pvcClaim, namespace, setGroup, extraArgs...))
 
+	dlog("getting pod name...")
 	podName := getGuestfsPodName(pvcClaim)
+
+	dlog("podname is %s", podName)
 	// Waiting until the libguestfs pod is running
 	Eventually(func(g Gomega) {
+		dlog("in eventually, getting pod...")
 		pod, err := kubevirt.Client().CoreV1().Pods(namespace).Get(context.Background(), podName, metav1.GetOptions{})
+		dlog("any error %v", err)
 		g.Expect(err).ToNot(HaveOccurred())
+		dlog("checking pod condition ready...")
 		g.Expect(pod).To(matcher.HaveConditionTrue(corev1.ContainersReady))
+		dlog("end of eventually loop")
 	}, 90*time.Second, 2*time.Second).Should(Succeed())
 	// Verify that the appliance has been extracted before running any tests by checking the done file
 	Eventually(func(g Gomega) {
@@ -158,13 +183,20 @@ func runGuestfsOnPVC(done chan struct{}, pvcClaim, namespace string, setGroup bo
 
 func guestfsWithSync(done chan struct{}, cmd func() error) {
 	defer GinkgoRecover()
+	dlog("guestfsWithSync(), run command async")
 	errChan := make(chan error)
 	go func() {
+		dlog("running cmd..")
 		errChan <- cmd()
+		dlog("command done")
 	}()
+
+	dlog("waiting on channels ...")
 	select {
 	case <-done:
+		dlog("done channel returned, test done")
 	case err := <-errChan:
+		dlog("cmd returns something %v", err)
 		Expect(err).ToNot(HaveOccurred())
 	}
 }
