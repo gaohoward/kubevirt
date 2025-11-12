@@ -47,6 +47,10 @@ func dlog(format string, args ...any) {
 	fmt.Fprintf(GinkgoWriter, "[debug] "+t+" "+format+"\n", args...)
 }
 
+func delay(dur int) {
+	time.Sleep(time.Duration(dur) * time.Minute)
+}
+
 var _ = Describe(SIG("[sig-storage]Guestfs", decorators.SigStorage, func() {
 	var (
 		pvcClaim string
@@ -68,10 +72,10 @@ var _ = Describe(SIG("[sig-storage]Guestfs", decorators.SigStorage, func() {
 
 	AfterEach(func() {
 		guestfs.CreateAttacherFunc = guestfs.CreateAttacher
+		close(done)
 		if CurrentSpecReport().State.Is(types.SpecStateFailed) {
-			dlog("failed test, don't close the chan so you can investiage")
-		} else {
-			close(done)
+			dlog("failed test, hang test for 30min")
+			delay(30)
 		}
 	})
 
