@@ -48,6 +48,35 @@ func dlog(format string, args ...any) {
 	fmt.Fprintf(GinkgoWriter, "[debug] "+t+" "+format+"\n", args...)
 }
 
+func CheckGuestfsToolsImage() (int, error) {
+	var image string
+	info, err := kubevirt.Client().GuestfsVersion().Get()
+	Expect(err).NotTo(HaveOccurred())
+	if info.GsImage != "" {
+		image = info.GsImage
+	} else {
+		image = fmt.Sprintf("%s%s", info.ImagePrefix, guestfs.DefaultImageName)
+		if info.Digest != "" {
+			image = fmt.Sprintf("%s@%s", image, info.Digest)
+		} else if info.Tag != "" {
+			image = fmt.Sprintf("%s:%s", image, info.Tag)
+		} else {
+			return 0, fmt.Errorf("Neither the digest nor the tag for the image has been specified")
+		}
+
+		if info.Registry != "" {
+			image = fmt.Sprintf("%s/%s", info.Registry, image)
+		}
+	}
+
+	dlog("The guestfs image to use is %s", image)
+
+	// timing and pull image
+
+	return 0, nil
+
+}
+
 func delay(dur int) {
 	time.Sleep(time.Duration(dur) * time.Minute)
 }

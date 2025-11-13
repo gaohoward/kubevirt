@@ -47,8 +47,8 @@ import (
 )
 
 const (
-	defaultImageName = "libguestfs-tools"
-	defaultImage     = "quay.io/kubevirt/" + defaultImageName + ":latest"
+	DefaultImageName = "libguestfs-tools"
+	defaultImage     = "quay.io/kubevirt/" + DefaultImageName + ":latest"
 	// KvmDevice defines the resource as in pkg/virt-controller/services/template.go, but we don't import the package to avoid compile conflicts when the os is windows
 	KvmDevice         = "devices.kubevirt.io/kvm"
 	volume            = "volume"
@@ -177,7 +177,7 @@ func SetImage(virtClient kubecli.KubevirtClient) (string, error) {
 		return info.GsImage, nil
 	}
 	// Set image name including prefix if available
-	imageName = fmt.Sprintf("%s%s", info.ImagePrefix, defaultImageName)
+	imageName = fmt.Sprintf("%s%s", info.ImagePrefix, DefaultImageName)
 	// Set the image version.
 	if info.Digest != "" {
 		imageName = fmt.Sprintf("%s@%s", imageName, info.Digest)
