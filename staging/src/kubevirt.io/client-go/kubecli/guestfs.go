@@ -55,7 +55,7 @@ func (v *GuestfsVersion) Get() (*GuestfsInfo, error) {
 	// First, find out which version to query
 	uri := ApiGroupName
 	req := v.restClient.Get().AbsPath(uri)
-	fmt.Printf("=========the request path: %v\n", req)
+	fmt.Printf("=========the request path(req.url.string): %s\n", req.URL().String())
 	result := v.restClient.Get().AbsPath(uri).Do(context.Background())
 	if data, err := result.Raw(); err != nil {
 		connErr, isConnectionErr := err.(*url.Error)
