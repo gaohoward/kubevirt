@@ -31,6 +31,9 @@ import (
 
 	v1 "kubevirt.io/api/core/v1"
 
+	draadmitter "kubevirt.io/kubevirt/pkg/dra/admitter"
+	netadmitter "kubevirt.io/kubevirt/pkg/network/admitter"
+	"kubevirt.io/kubevirt/pkg/network/vmispec"
 	webhookutils "kubevirt.io/kubevirt/pkg/util/webhooks"
 	virtconfig "kubevirt.io/kubevirt/pkg/virt-config"
 	"kubevirt.io/kubevirt/pkg/virt-operator/resource/generate/components"
@@ -184,7 +187,7 @@ func admitStorageUpdate(newVolumes, oldVolumes []v1.Volume, newDisks, oldDisks [
 	if hotplugAr != nil {
 		return hotplugAr
 	}
-	causes := ValidateVirtualMachineInstanceSpec(k8sfield.NewPath("spec"), &newVMI.Spec, config)
+	causes := ValidateVirtualMachineInstanceSpecForUpdate(k8sfield.NewPath("spec"), &newVMI.Spec, config)
 	if len(causes) > 0 {
 		return webhookutils.ToAdmissionResponse(causes)
 	}
@@ -458,4 +461,114 @@ func hasRequestOriginatedFromVirtHandler(requestUsername string, kubeVirtService
 	}
 
 	return false
+}
+
+func ValidateVirtualMachineInstanceSpecForUpdate(field *k8sfield.Path, spec *v1.VirtualMachineInstanceSpec, config *virtconfig.ClusterConfig) []metav1.StatusCause {
+	var causes []metav1.StatusCause
+
+	causes = append(causes, validateHostNameNotConformingToDNSLabelRules(field, spec)...)
+	causes = append(causes, validateSubdomainDNSSubdomainRules(field, spec)...)
+	causes = append(causes, validateMemoryRequestsNegativeOrNull(field, spec)...)
+	causes = append(causes, validateMemoryLimitsNegativeOrNull(field, spec)...)
+	causes = append(causes, validateHugepagesMemoryRequests(field, spec)...)
+	causes = append(causes, validateGuestMemoryLimit(field, spec, config)...)
+	causes = append(causes, validateEmulatedMachine(field, spec, config)...)
+	causes = append(causes, validateFirmwareACPI(field.Child("acpi"), spec)...)
+	causes = append(causes, validateCPURequestNotNegative(field, spec)...)
+	causes = append(causes, validateCPULimitNotNegative(field, spec)...)
+	causes = append(causes, validateCpuRequestDoesNotExceedLimit(field, spec)...)
+	causes = append(causes, validateCpuPinning(field, spec, config)...)
+	causes = append(causes, validateNUMA(field, spec, config)...)
+	causes = append(causes, validateCPUIsolatorThread(field, spec)...)
+	causes = append(causes, validateCPUFeaturePolicies(field, spec)...)
+	causes = append(causes, validateCPUHotplug(field, spec)...)
+	causes = append(causes, validateStartStrategy(field, spec)...)
+	causes = append(causes, validateRealtime(field, spec)...)
+	causes = append(causes, validateSpecAffinity(field, spec)...)
+	causes = append(causes, validateSpecTopologySpreadConstraints(field, spec)...)
+	causes = append(causes, validateArchitecture(field, spec, config)...)
+
+	netValidator := netadmitter.NewValidator(field, spec, config)
+	causes = append(causes, netValidator.Validate()...)
+
+	causes = append(causes, draadmitter.ValidateCreation(field, spec, config)...)
+
+	causes = append(causes, validateBootOrder(field, spec, config)...)
+
+	causes = append(causes, validateInputDevices(field, spec)...)
+	causes = append(causes, validateIOThreadsPolicy(field, spec)...)
+	causes = append(causes, validateProbe(field.Child("readinessProbe"), spec.ReadinessProbe)...)
+	causes = append(causes, validateProbe(field.Child("livenessProbe"), spec.LivenessProbe)...)
+
+	if podNetwork := vmispec.LookupPodNetwork(spec.Networks); podNetwork == nil {
+		causes = appendStatusCauseForProbeNotAllowedWithNoPodNetworkPresent(field.Child("readinessProbe"), spec.ReadinessProbe, causes)
+		causes = appendStatusCauseForProbeNotAllowedWithNoPodNetworkPresent(field.Child("livenessProbe"), spec.LivenessProbe, causes)
+	}
+
+	causes = append(causes, validateDomainSpecForUpdate(field.Child("domain"), &spec.Domain)...)
+	causes = append(causes, validateVolumes(field.Child("volumes"), spec.Volumes, config)...)
+	causes = append(causes, validateContainerDisks(field, spec)...)
+
+	causes = append(causes, validateAccessCredentials(field.Child("accessCredentials"), spec.AccessCredentials, spec.Volumes)...)
+
+	if spec.DNSPolicy != "" {
+		causes = append(causes, validateDNSPolicy(&spec.DNSPolicy, field.Child("dnsPolicy"))...)
+	}
+	causes = append(causes, validatePodDNSConfig(spec.DNSConfig, &spec.DNSPolicy, field.Child("dnsConfig"))...)
+	causes = append(causes, validateLiveMigration(field, spec, config)...)
+	causes = append(causes, validateMDEVRamFB(field, spec)...)
+	causes = append(causes, validateHostDevicesWithPassthroughEnabled(field, spec, config)...)
+	causes = append(causes, validateSoundDevices(field, spec)...)
+	causes = append(causes, validateLaunchSecurity(field, spec, config)...)
+	causes = append(causes, validateVSOCK(field, spec, config)...)
+	causes = append(causes, validatePersistentReservation(field, spec, config)...)
+	causes = append(causes, validateDownwardMetrics(field, spec, config)...)
+	causes = append(causes, validateFilesystemsWithVirtIOFSEnabled(field, spec, config)...)
+	causes = append(causes, validateVideoConfig(field, spec, config)...)
+	causes = append(causes, validatePanicDevices(field, spec, config)...)
+
+	return causes
+}
+
+func validateDomainSpecForUpdate(field *k8sfield.Path, spec *v1.DomainSpec) []metav1.StatusCause {
+	var causes []metav1.StatusCause
+
+	causes = append(causes, validateDevicesForUpdate(field.Child("devices"), &spec.Devices)...)
+	causes = append(causes, validateFirmware(field.Child("firmware"), spec.Firmware)...)
+
+	if secureBootEnabled(spec.Firmware) && !smmFeatureEnabled(spec.Features) {
+		causes = append(causes, metav1.StatusCause{
+			Type:    metav1.CauseTypeFieldValueInvalid,
+			Message: fmt.Sprintf("%s has EFI SecureBoot enabled. SecureBoot requires SMM, which is currently disabled.", field.String()),
+			Field:   field.String(),
+		})
+	}
+
+	return causes
+}
+
+func validateDevicesForUpdate(field *k8sfield.Path, devices *v1.Devices) []metav1.StatusCause {
+	var causes []metav1.StatusCause
+	causes = append(causes, validateDisksForUpdate(field.Child("disks"), devices.Disks)...)
+	return causes
+}
+
+// This differs from the original function validateDisks() in that
+// it doesn't enforce the DNS name length limit on Disks
+func validateDisksForUpdate(field *k8sfield.Path, disks []v1.Disk) []metav1.StatusCause {
+	var causes []metav1.StatusCause
+	for idx, disk := range disks {
+		causes = append(causes, validateDiskName(field, idx, disks)...)
+		causes = append(causes, validateDeviceTarget(field, idx, disk)...)
+		causes = append(causes, validatePciAddress(field, idx, disk)...)
+		causes = append(causes, validateBootOrderValue(field, idx, disk)...)
+		causes = append(causes, validateBusSupport(field, idx, disk)...)
+		causes = append(causes, validateSerialNumValue(field, idx, disk)...)
+		causes = append(causes, validateSerialNumLength(field, idx, disk)...)
+		causes = append(causes, validateCacheMode(field, idx, disk)...)
+		causes = append(causes, validateIOMode(field, idx, disk)...)
+		causes = append(causes, validateErrorPolicy(field, idx, disk)...)
+		causes = append(causes, validateBlockSize(field, idx, disk)...)
+	}
+	return causes
 }
