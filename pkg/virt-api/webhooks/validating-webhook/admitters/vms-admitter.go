@@ -85,6 +85,7 @@ func NewVMsAdmitter(clusterConfig *virtconfig.ClusterConfig, client kubecli.Kube
 }
 
 func (admitter *VMsAdmitter) Admit(ctx context.Context, ar *admissionv1.AdmissionReview) *admissionv1.AdmissionResponse {
+	log("in VMsAdmitter.Admit()")
 	if !webhookutils.ValidateRequestResource(ar.Request.Resource, webhooks.VirtualMachineGroupVersionResource.Group, webhooks.VirtualMachineGroupVersionResource.Resource) {
 		err := fmt.Errorf("expect resource to be '%s'", webhooks.VirtualMachineGroupVersionResource.Resource)
 		return webhookutils.ToAdmissionResponseError(err)
@@ -190,17 +191,23 @@ func (admitter *VMsAdmitter) AdmitStatus(ctx context.Context, ar *admissionv1.Ad
 		return webhookutils.ToAdmissionResponseError(err)
 	}
 
+	log("validating volu requests")
 	causes, err := admitter.validateVolumeRequests(ctx, vm)
 	if err != nil {
 		return webhookutils.ToAdmissionResponseError(err)
 	} else if len(causes) > 0 {
+		log("rejected from validation")
 		return webhookutils.ToAdmissionResponse(causes)
 	}
 
+	log("validating storageAdmitters.Admtstatus")
 	causes = storageAdmitters.AdmitStatus(admitter.VirtClient, ctx, ar.Request, vm, admitter.ClusterConfig)
 	if len(causes) > 0 {
+		log("rejected from storageAdmitters")
 		return webhookutils.ToAdmissionResponse(causes)
 	}
+
+	log("all good from VMsAdmitter.AdmitStatus")
 
 	reviewResponse := admissionv1.AdmissionResponse{}
 	reviewResponse.Allowed = true
