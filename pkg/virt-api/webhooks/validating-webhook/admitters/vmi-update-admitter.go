@@ -54,6 +54,7 @@ func NewVMIUpdateAdmitter(config *virtconfig.ClusterConfig, kubeVirtServiceAccou
 }
 
 func (admitter *VMIUpdateAdmitter) Admit(_ context.Context, ar *admissionv1.AdmissionReview) *admissionv1.AdmissionResponse {
+	log("In VMIUpdateAdmitter.Admit()")
 	if resp := webhookutils.ValidateSchema(v1.VirtualMachineInstanceGroupVersionKind, ar.Request.Object.Raw); resp != nil {
 		return resp
 	}
@@ -161,6 +162,9 @@ func validateExpectedDisksAndFilesystems(volumes []v1.Volume, disks []v1.Disk, f
 
 // admitStorageUpdate compares the old and new volumes and disks, and ensures that they match and are valid.
 func admitStorageUpdate(newVolumes, oldVolumes []v1.Volume, newDisks, oldDisks []v1.Disk, volumeStatuses []v1.VolumeStatus, newVMI *v1.VirtualMachineInstance, config *virtconfig.ClusterConfig) *admissionv1.AdmissionResponse {
+
+	log("in admitStorageUpdate()")
+
 	if err := validateExpectedDisksAndFilesystems(newVolumes, newDisks, newVMI.Spec.Domain.Devices.Filesystems, config); err != nil {
 		return webhookutils.ToAdmissionResponse([]metav1.StatusCause{
 			{
@@ -187,10 +191,14 @@ func admitStorageUpdate(newVolumes, oldVolumes []v1.Volume, newDisks, oldDisks [
 	if hotplugAr != nil {
 		return hotplugAr
 	}
+
+	log("calling validateVirtualMachineInstanceSpecForUpdate()")
 	causes := ValidateVirtualMachineInstanceSpecForUpdate(k8sfield.NewPath("spec"), &newVMI.Spec, config)
 	if len(causes) > 0 {
+		log("Something wrong, first result: %v", causes[0])
 		return webhookutils.ToAdmissionResponse(causes)
 	}
+	log("All good and return nil")
 	return nil
 }
 
@@ -402,6 +410,8 @@ func admitHotplug(
 	clusterConfig *virtconfig.ClusterConfig,
 ) *admissionv1.AdmissionResponse {
 
+	log("in admitHotPlugin")
+
 	if response := admitHotplugCPU(oldVMI.Spec.Domain.CPU, newVMI.Spec.Domain.CPU); response != nil {
 		return response
 	}
@@ -464,6 +474,7 @@ func hasRequestOriginatedFromVirtHandler(requestUsername string, kubeVirtService
 }
 
 func ValidateVirtualMachineInstanceSpecForUpdate(field *k8sfield.Path, spec *v1.VirtualMachineInstanceSpec, config *virtconfig.ClusterConfig) []metav1.StatusCause {
+
 	var causes []metav1.StatusCause
 
 	causes = append(causes, validateHostNameNotConformingToDNSLabelRules(field, spec)...)

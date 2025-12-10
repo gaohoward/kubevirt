@@ -184,6 +184,7 @@ func (admitter *VMsAdmitter) Admit(ctx context.Context, ar *admissionv1.Admissio
 }
 
 func (admitter *VMsAdmitter) AdmitStatus(ctx context.Context, ar *admissionv1.AdmissionReview) *admissionv1.AdmissionResponse {
+	log("in VMsAdmitter.AdmitStatus")
 	vm, _, err := webhookutils.GetVMFromAdmissionReview(ar)
 	if err != nil {
 		return webhookutils.ToAdmissionResponseError(err)
@@ -218,8 +219,9 @@ func ValidateVirtualMachineSpec(field *k8sfield.Path, spec *v1.VirtualMachineSpe
 	}
 
 	causes = append(causes, ValidateVirtualMachineInstanceMetadata(field.Child("template", "metadata"), &spec.Template.ObjectMeta, config, isKubeVirtServiceAccount)...)
+	log("calling validatevmispec, current causes %d", len(causes))
 	causes = append(causes, ValidateVirtualMachineInstanceSpec(field.Child("template", "spec"), &spec.Template.Spec, config)...)
-
+	log("after, causes %d", len(causes))
 	causes = append(causes, storageAdmitters.ValidateDataVolumeTemplate(field, spec)...)
 	causes = append(causes, validateRunStrategy(field, spec, config)...)
 	causes = append(causes, validateLiveUpdateFeatures(field, spec, config)...)
