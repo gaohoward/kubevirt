@@ -2250,9 +2250,6 @@ func validateDisks(field *k8sfield.Path, disks []v1.Disk) []metav1.StatusCause {
 		causes = append(causes, validateCacheMode(field, idx, disk)...)
 		causes = append(causes, validateIOMode(field, idx, disk)...)
 		causes = append(causes, validateErrorPolicy(field, idx, disk)...)
-		// Verify disk and volume name can be a valid container name since disk
-		// name can become a container name which will fail to schedule if invalid
-		causes = append(causes, validateDiskNameAsContainerName(field, idx, disk)...)
 		causes = append(causes, validateBlockSize(field, idx, disk)...)
 	}
 	return causes
