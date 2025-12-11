@@ -32,7 +32,6 @@ import (
 	k8sv1 "k8s.io/api/core/v1"
 	networkingv1 "k8s.io/api/networking/v1"
 	extv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
-	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	k8sfake "k8s.io/client-go/kubernetes/fake"
@@ -49,6 +48,9 @@ import (
 	kubevirtfake "kubevirt.io/client-go/kubevirt/fake"
 	cdiv1 "kubevirt.io/containerized-data-importer-api/pkg/apis/core/v1beta1"
 
+	"kubevirt.io/kubevirt/pkg/libdv"
+	"kubevirt.io/kubevirt/pkg/libvmi"
+	"kubevirt.io/kubevirt/pkg/libvmi/cloudinit"
 	"kubevirt.io/kubevirt/pkg/pointer"
 	"kubevirt.io/kubevirt/pkg/virt-operator/resource/generate/components"
 
@@ -329,52 +331,25 @@ var _ = Describe("PVC source", func() {
 	}
 
 	createVMWithDataVolumeTemplates := func(pvcName string) *virtv1.VirtualMachine {
-		vm := createVMWithoutVolumes()
-		vm.Spec.DataVolumeTemplates = []virtv1.DataVolumeTemplateSpec{
-			{
-				ObjectMeta: metav1.ObjectMeta{
-					Name:      pvcName,
-					Namespace: testNamespace,
-				},
-				Spec: cdiv1.DataVolumeSpec{
-					Source: &cdiv1.DataVolumeSource{
-						HTTP: &cdiv1.DataVolumeSourceHTTP{
-							URL: "https://download.fedoraproject.org/pub/fedora/linux/releases/40/Cloud/x86_64/images/Fedora-Cloud-Base-AmazonEC2.x86_64-40-1.14.raw.xz",
-						},
-					},
-					Storage: &cdiv1.StorageSpec{
-						AccessModes: []k8sv1.PersistentVolumeAccessMode{
-							k8sv1.ReadWriteMany,
-						},
-						Resources: k8sv1.VolumeResourceRequirements{
-							Requests: k8sv1.ResourceList{
-								k8sv1.ResourceStorage: resource.MustParse("1Gi"),
-							},
-						},
-					},
-				},
-			},
-		}
-
-		volume1 := virtv1.Volume{
-			Name: "datavolumedisk1",
-			VolumeSource: virtv1.VolumeSource{
-				DataVolume: &virtv1.DataVolumeSource{
-					Name: pvcName,
-				},
-			},
-		}
-		volume2 := virtv1.Volume{
-			Name: "cloudinitdisk",
-			VolumeSource: virtv1.VolumeSource{
-				CloudInitNoCloud: &virtv1.CloudInitNoCloudSource{
-					UserData: "#cloud-config\npassword: fedora\nchpasswd: { expire: False }\n",
-				},
-			},
-		}
-
-		vm.Spec.Template.Spec.Volumes = append(vm.Spec.Template.Spec.Volumes, volume1, volume2)
-
+		vmi := libvmi.New(
+			libvmi.WithName(testVmName),
+			libvmi.WithNamespace(testNamespace),
+			libvmi.WithDataVolume("datavolumedisk1", pvcName),
+			libvmi.WithCloudInitNoCloud(
+				cloudinit.WithNoCloudUserData("#cloud-config\npassword: fedora\nchpasswd: { expire: False }\n"),
+			),
+		)
+		dv := libdv.NewDataVolume(
+			libdv.WithName(pvcName),
+			libdv.WithNamespace(testNamespace),
+			libdv.WithHttpSource("https://some-image-url"),
+			libdv.WithStorage(
+				libdv.StorageWithReadWriteManyAccessMode(),
+			),
+		)
+		vm := libvmi.NewVirtualMachine(vmi,
+			libvmi.WithDataVolumeTemplate(dv),
+		)
 		return vm
 	}
 
@@ -436,7 +411,7 @@ var _ = Describe("PVC source", func() {
 		controller.VMInformer.GetStore().Add(createVMFunc())
 		controller.PVCInformer.GetStore().Add(createPVC("volume1", contentType1))
 		controller.PVCInformer.GetStore().Add(createPVC("volume2", contentType2))
-		expectExporterCreate(k8sClient, k8sv1.PodRunning)
+		expectExporterCreate(k8sClient, k8sv1.PodRunning, nil)
 		vmExportClient.Fake.PrependReactor("update", "virtualmachineexports", func(action testing.Action) (handled bool, obj runtime.Object, err error) {
 			update, ok := action.(testing.UpdateAction)
 			Expect(ok).To(BeTrue())
@@ -468,7 +443,7 @@ var _ = Describe("PVC source", func() {
 		controller.PVCInformer.GetStore().Add(createPVC("volume1", "kubevirt"))
 		backendPVC := createBackendPVC(vm.Name)
 		controller.PVCInformer.GetStore().Add(backendPVC)
-		expectExporterCreate(k8sClient, k8sv1.PodRunning)
+		expectExporterCreate(k8sClient, k8sv1.PodRunning, nil)
 		k8sClient.Fake.PrependReactor("list", "persistentvolumeclaims", func(action testing.Action) (handled bool, obj runtime.Object, err error) {
 			return true, &k8sv1.PersistentVolumeClaimList{Items: []k8sv1.PersistentVolumeClaim{*backendPVC}}, nil
 		})
@@ -500,7 +475,7 @@ var _ = Describe("PVC source", func() {
 		controller.VMIInformer.GetStore().Add(vmi)
 		controller.PVCInformer.GetStore().Add(createPVC("volume1", "kubevirt"))
 		controller.PVCInformer.GetStore().Add(createPVC("volume2", "kubevirt"))
-		expectExporterCreate(k8sClient, k8sv1.PodRunning)
+		expectExporterCreate(k8sClient, k8sv1.PodRunning, nil)
 		vmExportClient.Fake.PrependReactor("update", "virtualmachineexports", func(action testing.Action) (handled bool, obj runtime.Object, err error) {
 			update, ok := action.(testing.UpdateAction)
 			Expect(ok).To(BeTrue())
@@ -687,7 +662,12 @@ var _ = Describe("PVC source", func() {
 		controller.PVCInformer.GetStore().Add(createPVC("mydisk.example.local", "kubevirt"))
 		controller.VMExportInformer.GetStore().Add(testVMExport)
 
-		expectExporterCreateReady(k8sClient)
+		expectExporterCreate(k8sClient, k8sv1.PodRunning, []k8sv1.ContainerStatus{
+			{
+				Name:  "exporter",
+				Ready: true,
+			},
+		})
 
 		vmExportClient.Fake.PrependReactor("update", "virtualmachineexports", func(action testing.Action) (handled bool, obj runtime.Object, err error) {
 			update, ok := action.(testing.UpdateAction)

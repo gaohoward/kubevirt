@@ -213,7 +213,7 @@ var _ = Describe("PVC source", func() {
 
 	It("Should properly update VMExport status with a valid token and no pvc", func() {
 		testVMExport := createPVCVMExport()
-		expectExporterCreate(k8sClient, k8sv1.PodRunning)
+		expectExporterCreate(k8sClient, k8sv1.PodRunning, nil)
 		vmExportClient.Fake.PrependReactor("update", "virtualmachineexports", func(action testing.Action) (handled bool, obj runtime.Object, err error) {
 			update, ok := action.(testing.UpdateAction)
 			Expect(ok).To(BeTrue())
@@ -234,7 +234,7 @@ var _ = Describe("PVC source", func() {
 	It("Should properly update VMExport status with a valid token and archive pvc no route", func() {
 		testVMExport := createPVCVMExport()
 		pvcInformer.GetStore().Add(createPVC(testPVCName, "archive"))
-		expectExporterCreate(k8sClient, k8sv1.PodRunning)
+		expectExporterCreate(k8sClient, k8sv1.PodRunning, nil)
 		vmExportClient.Fake.PrependReactor("update", "virtualmachineexports", func(action testing.Action) (handled bool, obj runtime.Object, err error) {
 			update, ok := action.(testing.UpdateAction)
 			Expect(ok).To(BeTrue())
@@ -257,7 +257,7 @@ var _ = Describe("PVC source", func() {
 	It("Should properly update VMExport status with a valid token and kubevirt pvc with route", func() {
 		testVMExport := createPVCVMExport()
 		pvcInformer.GetStore().Add(createPVC(testPVCName, "kubevirt"))
-		expectExporterCreate(k8sClient, k8sv1.PodRunning)
+		expectExporterCreate(k8sClient, k8sv1.PodRunning, nil)
 		controller.RouteCache.Add(routeToHostAndService(components.VirtExportProxyServiceName))
 
 		vmExportClient.Fake.PrependReactor("update", "virtualmachineexports", func(action testing.Action) (handled bool, obj runtime.Object, err error) {
@@ -279,7 +279,7 @@ var _ = Describe("PVC source", func() {
 
 	It("Should properly update VMExport status with a valid token and no pvc, pending pod", func() {
 		testVMExport := createPVCVMExport()
-		expectExporterCreate(k8sClient, k8sv1.PodPending)
+		expectExporterCreate(k8sClient, k8sv1.PodPending, nil)
 		vmExportClient.Fake.PrependReactor("update", "virtualmachineexports", func(action testing.Action) (handled bool, obj runtime.Object, err error) {
 			update, ok := action.(testing.UpdateAction)
 			Expect(ok).To(BeTrue())

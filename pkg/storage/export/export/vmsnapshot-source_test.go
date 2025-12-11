@@ -472,7 +472,7 @@ var _ = Describe("VMSnapshot source", func() {
 			}))
 			return true, pvc, nil
 		})
-		expectExporterCreate(k8sClient, k8sv1.PodPending)
+		expectExporterCreate(k8sClient, k8sv1.PodPending, nil)
 
 		vmSnapshotInformer.GetStore().Add(createTestVMSnapshot(true))
 		vmSnapshotContentInformer.GetStore().Add(createTestVMSnapshotContent("snapshot-content"))
@@ -515,7 +515,7 @@ var _ = Describe("VMSnapshot source", func() {
 			Fail("unexpected create persistentvolumeclaims called")
 			return true, nil, nil
 		})
-		expectExporterCreate(k8sClient, k8sv1.PodPending)
+		expectExporterCreate(k8sClient, k8sv1.PodPending, nil)
 		pvcInformer.GetStore().Add(createRestoredPVC("test-test-snapshot"))
 		vmSnapshotInformer.GetStore().Add(createTestVMSnapshot(true))
 		vmSnapshotContentInformer.GetStore().Add(createTestVMSnapshotContent("snapshot-content"))
@@ -566,7 +566,7 @@ var _ = Describe("VMSnapshot source", func() {
 			Expect(pvc.GetAnnotations()[annContentType]).To(BeEquivalentTo(cdiv1.DataVolumeKubeVirt))
 			return true, pvc, nil
 		})
-		expectExporterCreate(k8sClient, k8sv1.PodRunning)
+		expectExporterCreate(k8sClient, k8sv1.PodRunning, nil)
 		controller.RouteCache.Add(routeToHostAndService(components.VirtExportProxyServiceName))
 		vmSnapshotInformer.GetStore().Add(createTestVMSnapshot(true))
 		vmSnapshotContentInformer.GetStore().Add(createTestVMSnapshotContent("snapshot-content"))
@@ -616,7 +616,7 @@ var _ = Describe("VMSnapshot source", func() {
 			Expect(pvc.GetAnnotations()[annContentType]).To(BeEmpty())
 			return true, pvc, nil
 		})
-		expectExporterCreate(k8sClient, k8sv1.PodRunning)
+		expectExporterCreate(k8sClient, k8sv1.PodRunning, nil)
 		controller.RouteCache.Add(routeToHostAndService(components.VirtExportProxyServiceName))
 		vmSnapshotInformer.GetStore().Add(createTestVMSnapshot(true))
 		content := createTestVMSnapshotContent("snapshot-content")

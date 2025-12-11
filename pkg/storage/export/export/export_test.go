@@ -1779,7 +1779,7 @@ func createBackendPVC(vmName string) *k8sv1.PersistentVolumeClaim {
 	}
 }
 
-func expectExporterCreate(k8sClient *k8sfake.Clientset, phase k8sv1.PodPhase) {
+func expectExporterCreate(k8sClient *k8sfake.Clientset, phase k8sv1.PodPhase, containerStatuses []k8sv1.ContainerStatus) {
 	k8sClient.Fake.PrependReactor("create", "pods", func(action testing.Action) (handled bool, obj runtime.Object, err error) {
 		create, ok := action.(testing.CreateAction)
 		Expect(ok).To(BeTrue())
@@ -1788,24 +1788,8 @@ func expectExporterCreate(k8sClient *k8sfake.Clientset, phase k8sv1.PodPhase) {
 		exportPod.Status = k8sv1.PodStatus{
 			Phase: phase,
 		}
-		return true, exportPod, nil
-	})
-}
-
-func expectExporterCreateReady(k8sClient *k8sfake.Clientset) {
-	k8sClient.Fake.PrependReactor("create", "pods", func(action testing.Action) (handled bool, obj runtime.Object, err error) {
-		create, ok := action.(testing.CreateAction)
-		Expect(ok).To(BeTrue())
-		exportPod, ok := create.GetObject().(*k8sv1.Pod)
-		Expect(ok).To(BeTrue())
-		exportPod.Status = k8sv1.PodStatus{
-			Phase: k8sv1.PodRunning,
-		}
-		exportPod.Status.ContainerStatuses = []k8sv1.ContainerStatus{
-			{
-				Name:  "exporter",
-				Ready: true,
-			},
+		if containerStatuses != nil {
+			exportPod.Status.ContainerStatuses = containerStatuses
 		}
 		return true, exportPod, nil
 	})
