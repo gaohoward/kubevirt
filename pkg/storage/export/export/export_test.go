@@ -1513,15 +1513,7 @@ func verifyLinksEmpty(vmExport *exportv1.VirtualMachineExport) {
 	Expect(vmExport.Status.Links.External).To(BeNil())
 }
 
-func verifyInternalLinkHasVolume(vmExport *exportv1.VirtualMachineExport, volName string) {
-	Expect(vmExport.Status.Links).ToNot(BeNil())
-	Expect(vmExport.Status.Links.Internal).ToNot(BeNil())
-	Expect(len(vmExport.Status.Links.Internal.Volumes)).To(BeEquivalentTo(1))
-	Expect(vmExport.Status.Links.Internal.Volumes[0].Name).To(Equal(volName))
-	Expect(len(vmExport.Status.Links.Internal.Volumes[0].Formats)).To(BeEquivalentTo(2))
-}
-
-func verifyLinksInternal(vmExport *exportv1.VirtualMachineExport, expectedVolumeFormats ...exportv1.VirtualMachineExportVolumeFormat) {
+func verifyLinksInternal(vmExport *exportv1.VirtualMachineExport, expectedName *string, expectedVolumeFormats ...exportv1.VirtualMachineExportVolumeFormat) {
 	Expect(vmExport.Status).ToNot(BeNil())
 	Expect(vmExport.Status.Links).ToNot(BeNil())
 	Expect(vmExport.Status.Links.Internal).NotTo(BeNil())
@@ -1530,6 +1522,9 @@ func verifyLinksInternal(vmExport *exportv1.VirtualMachineExport, expectedVolume
 	for _, volume := range vmExport.Status.Links.Internal.Volumes {
 		Expect(volume.Formats).To(HaveLen(2))
 		Expect(expectedVolumeFormats).To(ContainElements(volume.Formats))
+	}
+	if expectedName != nil {
+		Expect(vmExport.Status.Links.Internal.Volumes[0].Name).To(Equal(*expectedName))
 	}
 }
 
@@ -1559,7 +1554,7 @@ func verifyKubevirtInternal(vmExport *exportv1.VirtualMachineExport, exportName,
 			Url:    fmt.Sprintf("https://%s.%s.svc/volumes/%s/disk.img.gz", fmt.Sprintf("%s-%s", exportPrefix, exportName), namespace, volumeName),
 		})
 	}
-	verifyLinksInternal(vmExport, exportVolumeFormats...)
+	verifyLinksInternal(vmExport, nil, exportVolumeFormats...)
 }
 
 func verifyKubevirtExternal(vmExport *exportv1.VirtualMachineExport, exportName, namespace, volumeName string) {
@@ -1571,7 +1566,7 @@ func verifyKubevirtExternal(vmExport *exportv1.VirtualMachineExport, exportName,
 }
 
 func verifyArchiveInternal(vmExport *exportv1.VirtualMachineExport, exportName, namespace, volumeName string) {
-	verifyLinksInternal(vmExport,
+	verifyLinksInternal(vmExport, nil,
 		exportv1.VirtualMachineExportVolumeFormat{
 			Format: exportv1.Dir,
 			Url:    fmt.Sprintf("https://%s.%s.svc/volumes/%s/dir", fmt.Sprintf("%s-%s", exportPrefix, exportName), namespace, volumeName),

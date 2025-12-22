@@ -38,6 +38,7 @@ import (
 	"k8s.io/client-go/testing"
 	"k8s.io/client-go/tools/cache"
 	"k8s.io/client-go/tools/record"
+	"k8s.io/utils/ptr"
 
 	v1 "kubevirt.io/api/core/v1"
 	virtv1 "kubevirt.io/api/core/v1"
@@ -403,7 +404,7 @@ var _ = Describe("PVC source", func() {
 			Format: exportv1.ArchiveGz,
 			Url:    fmt.Sprintf("https://%s.%s.svc/volumes/%s/disk.tar.gz", fmt.Sprintf("%s-%s", exportPrefix, exportName), namespace, volumeNames[1]),
 		})
-		verifyLinksInternal(vmExport, exportVolumeFormats...)
+		verifyLinksInternal(vmExport, nil, exportVolumeFormats...)
 	}
 
 	DescribeTable("Should create VM export, when VM is stopped", func(createVMFunc func() *virtv1.VirtualMachine, contentType1, contentType2 string, verifyFunc func(vmExport *exportv1.VirtualMachineExport, exportName, namespace string, volumeNames ...string)) {
@@ -669,7 +670,7 @@ var _ = Describe("PVC source", func() {
 			Expect(ok).To(BeTrue())
 			vmExport, ok := update.GetObject().(*exportv1.VirtualMachineExport)
 			Expect(ok).To(BeTrue())
-			verifyInternalLinkHasVolume(vmExport, "mydisk.example.local")
+			verifyLinksInternal(vmExport, ptr.To("mydisk.example.local"), vmExport.Status.Links.Internal.Volumes[0].Formats...)
 			return true, vmExport, nil
 		})
 
