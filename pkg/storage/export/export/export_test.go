@@ -1041,18 +1041,18 @@ var _ = Describe("Export controller", func() {
 		Entry("PVC name with same length as limit", strings.Repeat("a", validation.DNS1035LabelMaxLength)),
 	)
 
-	DescribeTable("GetVolumeInfo should correctly resolve volume paths for various PVC names", func(pvcName string, volId types.UID) {
+	DescribeTable("GetVolumeInfo should correctly resolve volume paths for various PVC names", func(pvcName string, volUID types.UID) {
 		targetName := getExportPodVolumeNameFromStr(pvcName)
 		sp := &ServerPaths{
 			Volumes: []VolumeInfo{
 				{
-					Id:   volId,
+					UID:  volUID,
 					Path: "/var/run/kubevirt-export/" + targetName,
 				},
 			},
 		}
 
-		result := sp.GetVolumeInfo(volId)
+		result := sp.GetVolumeInfo(volUID)
 		Expect(result).ToNot(BeNil())
 
 		_, foundName := filepath.Split(filepath.Clean(result.Path))

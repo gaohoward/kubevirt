@@ -1329,7 +1329,7 @@ func addVolumeEnvironmentVariables(exportContainer *corev1.Container, pvc *corev
 		Value: mountPoint,
 	})
 	exportContainer.Env = append(exportContainer.Env, corev1.EnvVar{
-		Name:  fmt.Sprintf("VOLUME%d_EXPORT_ID", index),
+		Name:  fmt.Sprintf("VOLUME%d_EXPORT_UID", index),
 		Value: string(pvc.GetUID()),
 	})
 	if types.IsPVCBlock(pvc.Spec.VolumeMode) {

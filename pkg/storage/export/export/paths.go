@@ -35,7 +35,7 @@ type VolumeInfo struct {
 	DirURI     string
 	RawURI     string
 	RawGzURI   string
-	Id         types.UID
+	UID        types.UID
 }
 
 // BackupInfo contains paths for a backup volume
@@ -87,7 +87,7 @@ func CreateServerPaths(env map[string]string) *ServerPaths {
 				DirURI:     env[envPrefix+"_EXPORT_DIR_URI"],
 				RawURI:     env[envPrefix+"_EXPORT_RAW_URI"],
 				RawGzURI:   env[envPrefix+"_EXPORT_RAW_GZIP_URI"],
-				Id:         types.UID(env[envPrefix+"_EXPORT_ID"]),
+				UID:        types.UID(env[envPrefix+"_EXPORT_UID"]),
 			}
 			result.Volumes = append(result.Volumes, vi)
 		}
@@ -105,9 +105,9 @@ func CreateServerPaths(env map[string]string) *ServerPaths {
 }
 
 // GetVolumeInfo returns the VolumeInfo for a given PVC name
-func (sp *ServerPaths) GetVolumeInfo(pvcId types.UID) *VolumeInfo {
+func (sp *ServerPaths) GetVolumeInfo(pvcUID types.UID) *VolumeInfo {
 	for _, v := range sp.Volumes {
-		if v.Id == pvcId {
+		if v.UID == pvcUID {
 			return &v
 		}
 	}
