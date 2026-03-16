@@ -1417,6 +1417,119 @@ var _ = Describe(SIG("Export", func() {
 			})
 	}
 
+	It("should work with dvs that have dotted names", func() {
+		By("creating a VM with a dv with a dotted name")
+		dottedName := "my.test.disk"
+		dataVolume := libdv.NewDataVolume(
+			libdv.WithName(dottedName),
+			libdv.WithNamespace(testsuite.GetTestNamespace(nil)),
+			libdv.WithRegistryURLSourceAndPullMethod(cd.DataVolumeImportUrlForContainerDisk(cd.ContainerDiskAlpine), cdiv1.RegistryPullNode),
+		)
+		dataVolume = createDataVolume(dataVolume)
+
+		vm := libvmi.NewVirtualMachine(
+			libstorage.RenderVMIWithDataVolume(dottedName, testsuite.GetTestNamespace(nil),
+				libvmi.WithCloudInitNoCloud(libvmifact.WithDummyCloudForFastBoot()),
+			),
+			libvmi.WithRunStrategy(v1.RunStrategyAlways),
+		)
+
+		vm, err := virtClient.VirtualMachine(testsuite.GetTestNamespace(vm)).Create(context.Background(), vm, metav1.CreateOptions{})
+		Expect(err).ToNot(HaveOccurred())
+
+		// Verify backend PVC creation
+		By("Waiting for backend PVC to be created")
+		var pvc k8sv1.PersistentVolumeClaim
+		Eventually(func() error {
+			backendPVC, err := virtClient.CoreV1().PersistentVolumeClaims(vm.Namespace).List(context.Background(), metav1.ListOptions{
+				LabelSelector: "persistent-state-for=" + vm.Name,
+			})
+			if err != nil {
+				return err
+			}
+			if len(backendPVC.Items) != 1 {
+				return fmt.Errorf("expected 1 backend PVC, but found %d", len(backendPVC.Items))
+			}
+			pvc = backendPVC.Items[0]
+			return nil
+		}, 15*time.Second, 1*time.Second).Should(Succeed(), "Backend PVC should be created")
+
+		// Stop the VM and prepare the source for export
+		Eventually(ThisVM(vm), 360*time.Second, 1*time.Second).Should(BeReady())
+		vm = libvmops.StopVirtualMachine(vm)
+
+		// Prepare export token and VMExport object
+		By("Creating the export token and VMExport object")
+		token := createExportTokenSecret(vm.Name, vm.Namespace)
+		apiGroup := "kubevirt.io"
+		vmExport := &exportv1.VirtualMachineExport{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      fmt.Sprintf("test-export-%s", rand.String(12)),
+				Namespace: pvc.Namespace,
+			},
+			Spec: exportv1.VirtualMachineExportSpec{
+				TokenSecretRef: &token.Name,
+				Source: k8sv1.TypedLocalObjectReference{
+					APIGroup: &apiGroup,
+					Kind:     "VirtualMachine",
+					Name:     vm.Name,
+				},
+			},
+		}
+		export, err := virtClient.VirtualMachineExport(pvc.Namespace).Create(context.Background(), vmExport, metav1.CreateOptions{})
+		Expect(err).ToNot(HaveOccurred())
+		export = waitForReadyExport(export)
+		checkExportSecretRef(export)
+		Expect(*export.Status.TokenSecretRef).To(Equal(token.Name))
+
+		// Create a target PVC for downloading the exported volume
+		By("Creating a target PVC")
+		targetPvc := &k8sv1.PersistentVolumeClaim{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      fmt.Sprintf("target-pvc-%s", rand.String(12)),
+				Namespace: pvc.Namespace,
+			},
+			Spec: k8sv1.PersistentVolumeClaimSpec{
+				AccessModes:      pvc.Spec.AccessModes,
+				StorageClassName: pvc.Spec.StorageClassName,
+				Resources:        pvc.Spec.Resources,
+				VolumeMode:       pvc.Spec.VolumeMode,
+			},
+		}
+		targetPvc, err = virtClient.CoreV1().PersistentVolumeClaims(targetPvc.Namespace).Create(context.Background(), targetPvc, metav1.CreateOptions{})
+		Expect(err).ToNot(HaveOccurred())
+
+		// Create CA config map and download pod
+		caConfigMap := createCaConfigMapInternal("export-cacerts", targetPvc.Namespace, export)
+		downloadPod, err := createDownloadPodForPvc(targetPvc, caConfigMap)
+		Expect(err).ToNot(HaveOccurred())
+
+		// Download and verify the archive
+		By("Downloading and verifying the gzipped archive")
+		downloadUrl, fileName := urlGeneratorInternal(exportv1.ArchiveGz, pvc.Name, kubevirtcontentUrlTemplate, string(token.Data["token"]), export)
+		Expect(downloadUrl).ToNot(BeEmpty())
+		Expect(fileName).ToNot(BeEmpty())
+
+		fileAndPathName := filepath.Join(dataPath, fileName)
+
+		command := []string{
+			"curl",
+			"-L",
+			"--cacert",
+			filepath.Join(caCertPath, caBundleKey),
+			downloadUrl,
+			"--output",
+			fileAndPathName,
+		}
+
+		out, stderr, err := exec.ExecuteCommandOnPodWithResults(downloadPod, downloadPod.Spec.Containers[0].Name, command)
+		Expect(err).ToNot(HaveOccurred(), "out: %s stderr: %s", out, stderr)
+
+		// Verify contents of the downloaded archive
+		By("Verifying the contents of the downloaded archive")
+		verifyArchiveContainsDirectories(fileAndPathName, []string{"./swtpm", "./swtpm-localca/"}, downloadPod)
+	})
+
 	It("should create export from VMSnapshot", decorators.RequiresSnapshotStorageClass, func() {
 		sc, err := libstorage.GetSnapshotStorageClass(virtClient)
 		Expect(err).ToNot(HaveOccurred())
