@@ -1420,11 +1420,16 @@ var _ = Describe(SIG("Export", func() {
 	It("should work with dvs that have dotted names", func() {
 		By("creating a VM with a dv with a dotted name")
 		dottedName := "my.test.disk"
+		ns := testsuite.GetTestNamespace(nil)
 		dataVolume := libdv.NewDataVolume(
 			libdv.WithName(dottedName),
-			libdv.WithNamespace(testsuite.GetTestNamespace(nil)),
+			libdv.WithNamespace(ns),
 			libdv.WithRegistryURLSourceAndPullMethod(cd.DataVolumeImportUrlForContainerDisk(cd.ContainerDiskAlpine), cdiv1.RegistryPullNode),
+			libdv.WithStorage(
+				libdv.StorageWithVolumeSize(cd.AlpineVolumeSize),
+			),
 		)
+
 		dataVolume = createDataVolume(dataVolume)
 
 		vm := libvmi.NewVirtualMachine(
