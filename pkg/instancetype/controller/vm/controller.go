@@ -112,7 +112,9 @@ const (
 )
 
 func (c *controller) Sync(vm *virtv1.VirtualMachine, vmi *virtv1.VirtualMachineInstance) (*virtv1.VirtualMachine, error) {
+	log.Log.Object(vm).Infof("===== instance controller.Sync, inst type %v, pref %v =====", vm.Spec.Instancetype, vm.Spec.Preference)
 	if vm.Spec.Instancetype == nil && vm.Spec.Preference == nil {
+		log.Log.Object(vm).Infof("no instancetype or preference specified, skipping")
 		return vm, nil
 	}
 

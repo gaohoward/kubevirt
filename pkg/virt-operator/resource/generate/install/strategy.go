@@ -314,6 +314,7 @@ func decodeManifests(strategy []byte) (string, error) {
 	if _, err := io.Copy(&decodedStrategy, zr); err != nil {
 		return "", err
 	}
+
 	return decodedStrategy.String(), nil
 }
 

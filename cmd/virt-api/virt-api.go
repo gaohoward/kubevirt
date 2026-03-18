@@ -33,3 +33,20 @@ func main() {
 	service.Setup(app)
 	app.Execute()
 }
+
+// --- hack to let the menu fully appeared in resutil ---
+// --- hack to let the menu fully appeared in resutil ---
+// --- hack to let the menu fully appeared in resutil ---
+// --- hack to let the menu fully appeared in resutil ---
+// --- hack to let the menu fully appeared in resutil ---
+// --- hack to let the menu fully appeared in resutil ---
+// --- hack to let the menu fully appeared in resutil ---
+// --- hack to let the menu fully appeared in resutil ---
+// --- hack to let the menu fully appeared in resutil ---
+// --- hack to let the menu fully appeared in resutil ---
+// --- hack to let the menu fully appeared in resutil ---
+// --- hack to let the menu fully appeared in resutil ---
+// --- hack to let the menu fully appeared in resutil ---
+// --- hack to let the menu fully appeared in resutil ---
+// --- hack to let the menu fully appeared in resutil ---
+// --- hack to let the menu fully appeared in resutil ---
