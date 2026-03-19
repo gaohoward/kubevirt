@@ -3194,15 +3194,20 @@ func (c *Controller) sync(vm *virtv1.VirtualMachine, vmi *virtv1.VirtualMachineI
 		return vm, vmi, common.NewSyncError(fmt.Errorf(fetchingRunStrategyErrFmt, err), failedCreateReason), err
 	}
 
+	log.Log.Object(vm).Info("instanceTypeController Sync()")
+
 	// FIXME(lyarwood): Move alongside netSynchronizer
 	syncedVM, err := c.instancetypeController.Sync(vm, vmi)
 	if err != nil {
+		log.Log.Object(vm).Infof("got error, return: %v\n", err)
 		return vm, vmi, handleSynchronizerErr(err), nil
 	}
 	if !equality.Semantic.DeepEqual(vm.Spec, syncedVM.Spec) {
+		log.Log.Object(vm).Info("spec not same, returning")
 		return syncedVM, vmi, nil, nil
 	}
 	if !equality.Semantic.DeepEqual(vm.Status, syncedVM.Status) {
+		log.Log.Object(vm).Info("status not same, returning")
 		return syncedVM, vmi, nil, nil
 	}
 

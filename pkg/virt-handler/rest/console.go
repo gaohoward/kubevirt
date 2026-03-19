@@ -178,6 +178,7 @@ func (t *ConsoleHandler) VNCHandler(request *restful.Request, response *restful.
 }
 
 func (t *ConsoleHandler) SerialHandler(request *restful.Request, response *restful.Response) {
+	log.Log.Info("=======SerialHandler called")
 	vmi, code, err := getVMI(request, t.vmiStore)
 	if err != nil || vmi == nil {
 		log.Log.Reason(err).Error(failedRetrieveVMI)

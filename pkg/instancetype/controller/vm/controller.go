@@ -118,6 +118,8 @@ func (c *controller) Sync(vm *virtv1.VirtualMachine, vmi *virtv1.VirtualMachineI
 		return vm, nil
 	}
 
+	log.Log.Object(vm).Info("===== I wonder when it goes there =====")
+
 	// Before we sync ensure any referenced resources exist
 	if syncErr := c.checkResourcesExist(vm); syncErr != nil {
 		return vm, syncErr

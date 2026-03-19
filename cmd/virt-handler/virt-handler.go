@@ -192,7 +192,9 @@ func (app *virtHandlerApp) prepareCertManager() (err error) {
 }
 
 func (app *virtHandlerApp) markNodeAsUnschedulable(logger *log.FilteredLogger) {
+	logger.Info("Marking node as unschedulable")
 	data := []byte(fmt.Sprintf(`{"metadata": { "labels": {"%s": "false"}}}`, v1.NodeSchedulable))
+	logger.Infof("patching node with data: %s", string(data))
 	_, err := app.virtCli.CoreV1().Nodes().Patch(context.Background(), app.HostOverride, types.StrategicMergePatchType, data, metav1.PatchOptions{})
 	if err != nil {
 		logger.Reason(err).Error("Unable to mark node as unschedulable")
